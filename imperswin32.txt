@@ -1,0 +1,167 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace SharpToken
+{
+    internal class Win32
+    {
+        [Flags]
+        public enum ProcessAccessFlags : uint
+        {
+            All = 0x001F0FFF,
+            Terminate = 0x00000001,
+            CreateThread = 0x00000002,
+            VirtualMemoryOperation = 0x00000008,
+            VirtualMemoryRead = 0x00000010,
+            VirtualMemoryWrite = 0x00000020,
+            DuplicateHandle = 0x00000040,
+            CreateProcess = 0x000000080,
+            SetQuota = 0x00000100,
+            SetInformation = 0x00000200,
+            QueryInformation = 0x00000400,
+            QueryLimitedInformation = 0x00001000,
+            Synchronize = 0x00100000
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct PROCESS_INFORMATION
+        {
+            public IntPtr hProcess;
+            public IntPtr hThread;
+            public int dwProcessId;
+            public int dwThreadId;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+        public struct STARTUPINFO
+        {
+            public Int32 cb;
+            public IntPtr lpReserved;
+            public IntPtr lpDesktop;
+            public IntPtr lpTitle;
+            public Int32 dwX;
+            public Int32 dwY;
+            public Int32 dwXSize;
+            public Int32 dwYSize;
+            public Int32 dwXCountChars;
+            public Int32 dwYCountChars;
+            public Int32 dwFillAttribute;
+            public Int32 dwFlags;
+            public Int16 wShowWindow;
+            public Int16 cbReserved2;
+            public IntPtr lpReserved2;
+            public IntPtr hStdInput;
+            public IntPtr hStdOutput;
+            public IntPtr hStdError;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SECURITY_ATTRIBUTES
+        {
+            public int nLength;
+            public IntPtr lpSecurityDescriptor;
+            public int bInheritHandle;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct PROCESS_BASIC_INFORMATION
+        {
+            public IntPtr Reserved1;
+            public IntPtr PebAddress;
+            public IntPtr Reserved2;
+            public IntPtr Reserved3;
+            public IntPtr UniquePid;
+            public IntPtr MoreReserved;
+        }
+
+        public const UInt32 STANDARD_RIGHTS_REQUIRED = 0x000F0000;
+        public const UInt32 STANDARD_RIGHTS_READ = 0x00020000;
+        public const UInt32 TOKEN_ASSIGN_PRIMARY = 0x0001;
+        public const UInt32 TOKEN_DUPLICATE = 0x0002;
+        public const UInt32 TOKEN_IMPERSONATE = 0x0004;
+        public const UInt32 TOKEN_QUERY = 0x0008;
+        public const UInt32 TOKEN_QUERY_SOURCE = 0x0010;
+        public const UInt32 TOKEN_ADJUST_PRIVILEGES = 0x0020;
+        public const UInt32 TOKEN_ADJUST_GROUPS = 0x0040;
+        public const UInt32 TOKEN_ADJUST_DEFAULT = 0x0080;
+        public const UInt32 TOKEN_ADJUST_SESSIONID = 0x0100;
+        public const UInt32 TOKEN_READ = (STANDARD_RIGHTS_READ | TOKEN_QUERY);
+        public const UInt32 TOKEN_ALL_ACCESS = (STANDARD_RIGHTS_REQUIRED | TOKEN_ASSIGN_PRIMARY |
+            TOKEN_DUPLICATE | TOKEN_IMPERSONATE | TOKEN_QUERY | TOKEN_QUERY_SOURCE |
+            TOKEN_ADJUST_PRIVILEGES | TOKEN_ADJUST_GROUPS | TOKEN_ADJUST_DEFAULT |
+            TOKEN_ADJUST_SESSIONID);
+
+        public enum TOKEN_TYPE
+        {
+            TokenPrimary = 1,
+            TokenImpersonation
+        }
+        public enum SECURITY_IMPERSONATION_LEVEL
+        {
+            SecurityAnonymous,
+            SecurityIdentification,
+            SecurityImpersonation,
+            SecurityDelegation
+        }
+
+        public enum LogonFlags
+        {
+            /// <summary>
+            /// Log on, then load the user's profile in the HKEY_USERS registry key. The function
+            /// returns after the profile has been loaded. Loading the profile can be time-consuming,
+            /// so it is best to use this value only if you must access the information in the
+            /// HKEY_CURRENT_USER registry key.
+            /// NOTE: Windows Server 2003: The profile is unloaded after the new process has been
+            /// terminated, regardless of whether it has created child processes.
+            /// </summary>
+            /// <remarks>See LOGON_WITH_PROFILE</remarks>
+            WithProfile = 1,
+            /// <summary>
+            /// Log on, but use the specified credentials on the network only. The new process uses the
+            /// same token as the caller, but the system creates a new logon session within LSA, and
+            /// the process uses the specified credentials as the default credentials.
+            /// This value can be used to create a process that uses a different set of credentials
+            /// locally than it does remotely. This is useful in inter-domain scenarios where there is
+            /// no trust relationship.
+            /// The system does not validate the specified credentials. Therefore, the process can start,
+            /// but it may not have access to network resources.
+            /// </summary>
+            /// <remarks>See LOGON_NETCREDENTIALS_ONLY</remarks>
+            NetCredentialsOnly
+
+        }
+
+        public enum CreationFlags
+
+        {
+
+            DefaultErrorMode = 0x04000000,
+            NewConsole = 0x00000010,
+            NewProcessGroup = 0x00000200,
+            SeparateWOWVDM = 0x00000800,
+            Suspended = 0x00000004,
+            UnicodeEnvironment = 0x00000400,
+            ExtendedStartupInfoPresent = 0x00080000
+
+        }
+
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr OpenProcess(ProcessAccessFlags processAccess, bool bInheritHandle, uint processId);
+
+        [DllImport("advapi32.dll")]
+        public static extern bool OpenProcessToken(IntPtr ProcessHandle, UInt32 DesiredAccess, out IntPtr TokenHandle);
+
+        [DllImport("advapi32.dll")]
+        public static extern bool DuplicateTokenEx(IntPtr hExistingToken, uint dwDesiredAccess, IntPtr lpTokenAttributes, SECURITY_IMPERSONATION_LEVEL ImpersonationLevel, TOKEN_TYPE TokenType, out IntPtr phNewToken);
+
+        [DllImport("advapi32.dll")]
+        public static extern bool CreateProcessWithTokenW(IntPtr hToken, LogonFlags dwLogonFlags, string lpApplicationName, string lpCommandLine, CreationFlags dwCreationFlags, IntPtr lpEnvironment, string lpCurrentDirectory, [In] ref STARTUPINFO lpStartupInfo, out PROCESS_INFORMATION lpProcessInformation);
+
+        [DllImport("advapi32.dll")]
+        public static extern bool ImpersonateLoggedOnUser(IntPtr hToken);
+    }
+}
